@@ -6,24 +6,22 @@ import cv2  # OpenCV for images/videos
 import random
 from tkinter import messagebox
 from tkinter import font as tkfont
-import os # Import os for path handling. images/videos wouldnt load without this
+import os # Import os for path handling
+import pygame # <--- NEW: Import pygame for audio
 
 #ASSET PATH CONFIGURATION
-#Get the directory of the currently executing script (quiz.py)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-#Define the path to the assets folder relative to the script's directory
 ASSET_PATH = os.path.join(SCRIPT_DIR, "assets")
 
 #GLOBAL WINDOW
 root = tk.Tk()
-root.state('zoomed') #to appear in full screen
+root.state('zoomed') 
 root.title("Math Quiz")
 
 #USING COMIC SANS AS CUSTOM FONT
 try:
     custom_font = tkfont.Font(family="Comic Sans MS", size=16)
 except:
-    #"Arial" if "Comic Sans MS" is not available
     custom_font = tkfont.Font(family="Arial", size=16)
 
 root.option_add("*Font", custom_font)
@@ -50,7 +48,6 @@ def update_video(cap, video_label, loop=False):
     ret, frame = cap.read()
     if not ret:
         if loop:
-            # It will restart video if looping
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             root.after(1, lambda: update_video(cap, video_label, loop))
         return
@@ -83,14 +80,17 @@ def update_video(cap, video_label, loop=False):
 def fade_in_button(btn, steps=20, step=0):
     if step > steps:
         return
-    start_color = (107, 30, 30)  #6b1e1e
-    end_color = (139, 46, 46)    #8b2e2e
+    start_color = (107, 30, 30) 
+    end_color = (139, 46, 46)    
     r = int(start_color[0] + (end_color[0]-start_color[0])*(step/steps))
     g = int(start_color[1] + (end_color[1]-start_color[1])*(step/steps))
     b = int(start_color[2] + (end_color[2]-start_color[2])*(step/steps))
-    btn.config(bg=f"#{r:02x}{g:02x}{b:02x}")
-    btn.lift()
-    btn.after(50, lambda: fade_in_button(btn, steps, step+1))
+    try:
+        btn.config(bg=f"#{r:02x}{g:02x}{b:02x}")
+        btn.lift()
+        btn.after(50, lambda: fade_in_button(btn, steps, step+1))
+    except:
+        pass
 
 #START SCREEN
 def show_start_screen():
@@ -101,8 +101,6 @@ def show_start_screen():
     video_file_name = "MATH QUIZ.mp4"
     video_file = os.path.join(ASSET_PATH, video_file_name) 
 
-    #TO CHECK PATH 
-    # The output will now show the full absolute path Python is trying to use.
     if not os.path.exists(video_file):
         print(f"DIAGNOSTIC: File NOT FOUND at path: {video_file}.")
     else:
@@ -112,9 +110,8 @@ def show_start_screen():
     try:
         cap1 = cv2.VideoCapture(video_file)
         if not cap1.isOpened():
-            # Error message suggests file found but failed to open (OpenCV/Codec issue)
-            print(f"Error: Could not open video file: {video_file}. (Likely missing OpenCV codec or corrupted file).")
-            video_label.config(text=f"Video Error: '{video_file_name}' not supported or corrupted.", fg="red", bg="black")
+            print(f"Error: Could not open video file: {video_file}.")
+            video_label.config(text=f"Video Error", fg="red", bg="black")
             cap1 = None
     except Exception as e:
         print(f"Error loading video: {e}")
@@ -134,10 +131,13 @@ def show_start_screen():
     how_btn.lower()
 
     def fade_buttons():
-        start_btn.lift()
-        fade_in_button(start_btn)
-        how_btn.lift()
-        fade_in_button(how_btn)
+        try:
+            start_btn.lift()
+            fade_in_button(start_btn)
+            how_btn.lift()
+            fade_in_button(how_btn)
+        except:
+            pass
 
     if cap1:
         root.after(2500, fade_buttons)
@@ -157,8 +157,7 @@ def play_second_video():
     try:
         cap2 = cv2.VideoCapture(video_file)
         if not cap2.isOpened():
-            print(f"Error: Could not open video file: {video_file}. (Likely missing OpenCV codec or corrupted file).")
-            video_label.config(text=f"Video Error: '{video_file_name}' not supported or corrupted.", fg="red", bg="black")
+            print(f"Error: Could not open video file: {video_file}.")
             cap2 = None
     except Exception as e:
         print(f"Error loading video: {e}")
@@ -188,7 +187,7 @@ def play_second_video():
 
     #BACK BUTTON IMAGE
     try:
-        back_img_file = os.path.join(ASSET_PATH, "BACKBUTTON.png") # <--- ROBUST PATHING
+        back_img_file = os.path.join(ASSET_PATH, "BACKBUTTON.png")
         back_img = Image.open(back_img_file).resize((80, 80))
         back_photo = ImageTk.PhotoImage(back_img)
         root.back_photo_ref_2 = back_photo
@@ -206,14 +205,12 @@ def play_second_video():
         root.after(2000, lambda: fade_in_button(back_btn))
 
     except FileNotFoundError:
-        # Fallback text button if image is not found
         back_btn = tk.Button(root, text="BACK", font=("Comic Sans MS", 14, "bold"),
                              bg="#6b1e1e", fg="white", relief="flat", cursor="hand2",
                              command=lambda: (cap2.release() if cap2 else None, show_start_screen()))
         back_btn.place(relx=0.07, rely=0.1, anchor="center")
         back_btn.lift()
     except Exception as e:
-        print(f"Error loading back button image: {e}")
         back_btn = tk.Button(root, text="BACK", font=("Comic Sans MS", 14, "bold"),
                              bg="#6b1e1e", fg="white", relief="flat", cursor="hand2",
                              command=lambda: (cap2.release() if cap2 else None, show_start_screen()))
@@ -258,16 +255,12 @@ def display_quiz_question():
     bg_photo = None
     try:
         bg_image_file = os.path.join(ASSET_PATH, "BG.jpg") 
-        # Use root.winfo_width() and height, but wrap in a check to ensure they are available
         width = root.winfo_width()
         height = root.winfo_height()
         bg_image = Image.open(bg_image_file).resize((width, height))
         bg_photo = ImageTk.PhotoImage(bg_image)
         root.bg_photo_ref = bg_photo
-    except FileNotFoundError:
-        root.config(bg="black")
     except Exception as e:
-        print(f"Background image error: {e}")
         root.config(bg="black")
 
     canvas = tk.Canvas(root, width=root.winfo_width(), height=root.winfo_height(), highlightthickness=0)
@@ -293,20 +286,12 @@ def display_quiz_question():
         back_btn.place(relx=0.07, rely=0.1, anchor="center")
         fade_in_button(back_btn)
 
-    except FileNotFoundError:
-        # Fallback text button
-        back_btn = tk.Button(root, text="BACK", font=("Comic Sans MS", 16, "bold"),
-                             bg="#6b1e1e", fg="white", command=show_start_screen)
-        back_btn.place(relx=0.07, rely=0.1, anchor="center")
-        back_btn.lift()
-    except Exception as e:
-        print(f"Error loading back button image: {e}")
+    except Exception:
         back_btn = tk.Button(root, text="BACK", font=("Comic Sans MS", 16, "bold"),
                              bg="#6b1e1e", fg="white", command=show_start_screen)
         back_btn.place(relx=0.07, rely=0.1, anchor="center")
         back_btn.lift()
 
-    #CHECK IF QUIZ ENDED
     if quiz_index >= len(quiz_questions):
         display_quiz_results()
         return
@@ -363,7 +348,6 @@ def display_quiz_results():
     video_label = tk.Label(root)
     video_label.pack(fill="both", expand=True)
 
-    # Determine result video
     if quiz_score > 90:
         result_video_name = "excellent.mp4"
     elif quiz_score >= 50:
@@ -376,12 +360,13 @@ def display_quiz_results():
     def play_video(file, after_func=None):
         cap = cv2.VideoCapture(file)
         if not cap.isOpened():
-            print(f"Error: Could not open {file}. (Likely missing OpenCV codec or corrupted file).")
+            print(f"Error: Could not open {file}.")
             if after_func:
                 after_func()
             return
 
         def update_frame():
+            if not root.winfo_exists(): return 
             ret, frame = cap.read()
             if not ret:
                 cap.release()
@@ -418,7 +403,6 @@ def display_quiz_results():
         tk.Button(root, text="Exit", font=("Comic Sans MS", 24, "bold"),
                   bg="#6b1e1e", fg="white", command=root.quit).place(relx=0.5, rely=0.95, anchor="center", width=200, height=60)
 
-    # Play confetti first, then result video
     confetti_file = os.path.join(ASSET_PATH, "confetti.mp4")
     def play_confetti_then_result():
         play_video(confetti_file, after_func=lambda: play_video(result_video, after_func=overlay_results))
@@ -437,7 +421,7 @@ def show_how_to_play_video():
     if cap3.isOpened():
         update_video(cap3, video_label, loop=False)
     else:
-        print(f"Error: Could not open video file: {video_file}. (Likely missing OpenCV codec or corrupted file).")
+        print(f"Error: Could not open video file: {video_file}.")
 
 
     try:
@@ -456,14 +440,7 @@ def show_how_to_play_video():
         back_btn.place(relx=0.07, rely=0.1, anchor="center")
         fade_in_button(back_btn)
 
-    except FileNotFoundError:
-        # Fallback text button
-        back_btn = tk.Button(root, text="BACK", font=("Comic Sans MS", 16, "bold"),
-                             bg="#6b1e1e", fg="white", command=show_start_screen)
-        back_btn.place(relx=0.07, rely=0.1, anchor="center")
-        back_btn.lift()
-    except Exception as e:
-        print(f"Error loading back button image: {e}")
+    except Exception:
         back_btn = tk.Button(root, text="BACK", font=("Comic Sans MS", 16, "bold"),
                              bg="#6b1e1e", fg="white", command=show_start_screen)
         back_btn.place(relx=0.07, rely=0.1, anchor="center")
@@ -478,5 +455,21 @@ def displayMenu():
 if __name__ == "__main__":
     root.state('zoomed')
     root.title("Math Quiz")
+    
+    #MUSIC CODE
+    try:
+        pygame.mixer.init()
+        music_file = os.path.join(ASSET_PATH, "music.mp3") 
+        
+        if os.path.exists(music_file):
+            pygame.mixer.music.load(music_file)
+            pygame.mixer.music.set_volume(0.5) # Set volume to 50%
+            pygame.mixer.music.play(-1) # -1 means loop infinitely
+            print(f"Playing music: {music_file}")
+        else:
+            print(f"Warning: Music file not found at {music_file}")
+    except Exception as e:
+        print(f"Error loading music: {e}")
+
     show_start_screen()
     root.mainloop()
